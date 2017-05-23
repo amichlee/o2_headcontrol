@@ -1,10 +1,17 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
-PROJECT (CAMERA-TEST)
+PROJECT (UNITY_KUKA)
 # SG: dont need version
 SET (PROJECT_VERSION 0.1.0) #major version is zero for now since api will certainly change in future
 
 SET(CMAKE_CXX_FLAGS "-std=c++11")
+
+set (O2_COMMON_SOURCE
+	${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
+	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.h
+	${PROJECT_SOURCE_DIR}/src/force_sensor/ForceSensorSim.h
+	${PROJECT_SOURCE_DIR}/src/force_sensor/ForceSensorDisplay.h)
+include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # include Chai3d (required by Dynamics3D)
 # -- this is required by Chai3d to pick the correct path for OpenGL headers
@@ -38,21 +45,53 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 FIND_PACKAGE(glfw3 QUIET)
 FIND_LIBRARY(GLFW_LIB glfw)
 
+# - hiredis
+find_library(HIREDIS_LIBRARY hiredis)
+
+# JSON 
+if (CMAKE_SYSTEM_NAME MATCHES Darwin) 
+	find_library(JSONCPP_LIBRARY jsoncpp)
+elseif (CMAKE_SYSTEM_NAME MATCHES Linux)
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(JSONCPP jsoncpp)
+	include_directories(${JSONCPP_INCLUDE_DIRS})
+	link_directories(${JSONCPP_LIBRARY_DIRS})
+	set(JSONCPP_LIBRARY ${JSONCPP_LIBRARIES})
+endif ()
+
 #SG: Not required. 
 # include RBDL
 FIND_PACKAGE(RBDL QUIET)
 
 # create an executable
-#ADD_EXECUTABLE (01-camera-test 01-camera-test.cpp)
-ADD_EXECUTABLE(01-camera-test 01-camera-test-labcode.cpp)
+ADD_EXECUTABLE(05a-control-unity-kuka 05a-unity-kuka-control.cpp)
+ADD_EXECUTABLE(05b-simulation-unity-kuka 05b-unity-kuka-simulation.cpp)
+ADD_EXECUTABLE(05c-visualizer-unity-kuka 05c-unity-kuka-visualizer.cpp)
+ADD_EXECUTABLE(04-orientation-control 04-orientation-control.cpp)
 
 #SG: add chai libraries
-TARGET_LINK_LIBRARIES (01-camera-test
+
+set(O2_COMMON_LIBRARIES
 	${CHAI3D_LIBRARIES}
 	${SAI2-COMMON_LIBRARIES}
 	${SAI2-SIMULATION_LIBRARIES}
-	${GLFW_LIB})
+	${GLFW_LIB}
+	${HIREDIS_LIBRARY}
+	${JSONCPP_LIBRARY})
+
+TARGET_LINK_LIBRARIES (05a-control-unity-kuka
+	${O2_COMMON_LIBRARIES})
+
+TARGET_LINK_LIBRARIES (05b-simulation-unity-kuka
+	${O2_COMMON_LIBRARIES})
+
+TARGET_LINK_LIBRARIES (05c-visualizer-unity-kuka 
+	${O2_COMMON_LIBRARIES})
+
+
+TARGET_LINK_LIBRARIES (04-orientation-control
+	${O2_COMMON_LIBRARIES})
 
 SET(RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources)
 FILE(MAKE_DIRECTORY ${RESOURCE_DIR})
-FILE(COPY world.urdf pbot.urdf DESTINATION ${RESOURCE_DIR})
+	
