@@ -47,6 +47,8 @@ int main() {
 	auto redis_client = RedisClient();
 	redis_client.serverIs(info);
 
+	bool readyToStart= false; 
+
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
 	signal(SIGTERM, &sighandler);
@@ -61,8 +63,8 @@ int main() {
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0, 90.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 1, -30.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 3, 60.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 1, -30/180.0*M_PI);
+	sim->setJointPosition(robot_name, 3, 60/180.0*M_PI);
 	sim->setJointPosition(robot_name, 5, -90.0/180.0*M_PI);
 
 	// create a loop timer

@@ -23,15 +23,27 @@ unsigned long long controller_counter = 0;
 // - write:
 const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::KUKA_IIWA::actuators::fgc";
 // - read:
-const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q"; //where are these coming from?
+const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q"; 
 const std::string JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
 const std::string JOINT_TORQUES_SENSED_KEY = "sai2::KUKA_IIWA::sensors::torques";
+const std::string VR_PAN = "vr_pan"; 
+const std::string VR_TILT = "vr_tilt"; 
+
+const int PAN_JOINT = 4;
+const int TILT_JOINT= 5; 
 
  void sighandler(int sig)
  { runloop = false; }
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
+
+	float tilt = 0;
+	float pan = 0; 
+	float tilt_rad= 0;
+	float pan_rad= 0;
+	bool readyToStart= false; 
+
 
 	// start redis client
 	HiredisServerInfo info;
@@ -65,18 +77,22 @@ int main() {
 
 	// Joint control
 	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
-	Eigen::VectorXd initial_joint_position(dof);
+	Eigen::VectorXd initial_joint_position(dof), initial_desired_joint_position(dof);
 	initial_joint_position = robot->_q;
+	joint_task_desired_position = initial_joint_position; 
 
 	Eigen::MatrixXd joint_kp = Eigen::MatrixXd::Zero(7,7);
 	Eigen::MatrixXd joint_kv = Eigen::MatrixXd::Zero(7,7);
 	Eigen::VectorXd joint_kp_vector = Eigen::VectorXd::Zero(7);
 	Eigen::VectorXd joint_kv_vector = Eigen::VectorXd::Zero(7);
-	joint_kp_vector << 100, 100, 60, 60, 10, 8, 5;
-	joint_kv_vector << 20, 20, 10, 10, 5, 3, 1;
+	joint_kp_vector << 100, 100, 60, 60, 60, 100, 5;
+	joint_kv_vector << 20, 20, 10, 10, 20, 20, 1;
 
 	joint_kp = joint_kp_vector.asDiagonal();
 	joint_kv = joint_kv_vector.asDiagonal();
+	
+	std::string pan_string;
+	std::string tilt_string; 
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -86,6 +102,15 @@ int main() {
 	timer.setCtrlCHandler(stop);    // exit while loop on ctrl-c
 	timer.initializeTimer(1000000); // 1 ms pause before starting loop
 
+	//set preferred initial conditions 
+	initial_desired_joint_position << 90.0/180.0*M_PI, 
+										-30.0/180.0*M_PI, 
+										0, 
+										-20/180.0*M_PI,
+										0,
+										-90/180.0*M_PI,
+										0; 
+	
 	// while window is open:
 	while (runloop) {
 
@@ -96,18 +121,61 @@ int main() {
 		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
+		if (readyToStart == false ) {
+			joint_task_torques = ( -joint_kp*(robot->_q - initial_desired_joint_position) - joint_kv*robot->_dq);
+
+			if (controller_counter > 5000) {
+				readyToStart= true; 
+				cout<<"ready to start" <<endl;
+			}
+		} else { 
+
+			if (controller_counter%10 == 0 ) {
+				joint_task_desired_position= initial_desired_joint_position; 
+				pan_string = redis_client.get(VR_PAN); 
+				tilt_string = redis_client.get(VR_TILT); 
+
+				pan = std::stof(pan_string);
+				tilt = std::stof(tilt_string);
+
+				if (pan > 180) {
+					pan= pan-360; 
+				}
+				if (tilt >180) {
+					tilt= tilt- 360; 
+				}
+
+				if (tilt > 20) {
+					tilt = 20;
+					cout<<"don't tilt more than -20deg"<<endl;
+				}
+
+				pan_rad= -pan/180.0*M_PI;
+				tilt_rad = -tilt/180.0*M_PI;
+
+				joint_task_desired_position(TILT_JOINT)= initial_joint_position(TILT_JOINT)+tilt_rad;
+				joint_task_desired_position(PAN_JOINT) = initial_joint_position(PAN_JOINT)+ pan_rad; 
+
+				//cout<<"joint desired pos: " <<joint_task_desired_position<<endl;
+				//cout<<"pan angle: " <<pan<<endl;
+				//cout<<"tilt angle: " <<tilt<<endl;
+			}
+			joint_task_torques = ( -joint_kp*(robot->_q - joint_task_desired_position) - joint_kv*robot->_dq);
+
+		}
+
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
 		{
 			robot->updateModel();
 
 		}
+		
 
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
 
 		//----- Joint control
-		joint_task_torques = ( -joint_kp*(robot->_q - initial_joint_position) - joint_kv*robot->_dq);
 
 		//------ Final torques
 		command_torques = joint_task_torques;

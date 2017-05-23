@@ -64,10 +64,10 @@ endif ()
 FIND_PACKAGE(RBDL QUIET)
 
 # create an executable
-ADD_EXECUTABLE(05a-control-unity-kuka 05a-unity-kuka-control.cpp)
+ADD_EXECUTABLE(05a-control-unity-kuka 05a-unity-kuka-control.cpp src/redis/RedisClient.cpp)
 ADD_EXECUTABLE(05b-simulation-unity-kuka 05b-unity-kuka-simulation.cpp)
 ADD_EXECUTABLE(05c-visualizer-unity-kuka 05c-unity-kuka-visualizer.cpp)
-ADD_EXECUTABLE(04-orientation-control 04-orientation-control.cpp)
+#ADD_EXECUTABLE(04-orientation-control 04-orientation-control.cpp)
 
 #SG: add chai libraries
 
@@ -89,8 +89,8 @@ TARGET_LINK_LIBRARIES (05c-visualizer-unity-kuka
 	${O2_COMMON_LIBRARIES})
 
 
-TARGET_LINK_LIBRARIES (04-orientation-control
-	${O2_COMMON_LIBRARIES})
+#TARGET_LINK_LIBRARIES (04-orientation-control
+#	${O2_COMMON_LIBRARIES})
 
 SET(RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources)
 FILE(MAKE_DIRECTORY ${RESOURCE_DIR})
