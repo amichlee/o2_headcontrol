@@ -47,7 +47,6 @@ int main() {
 	auto redis_client = RedisClient();
 	redis_client.serverIs(info);
 
-	bool readyToStart= false; 
 
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
