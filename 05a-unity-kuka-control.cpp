@@ -13,6 +13,7 @@ void stop(int){runloop = false;}
 
 using namespace std;
 
+
 const string world_file = "../resources/05-unity-kuka/world.urdf";
 const string robot_file = "../resources/05-unity-kuka/kuka_iiwa02.urdf";
 const string robot_name = "Kuka-IIWA";
@@ -77,7 +78,7 @@ int main() {
 
 	// Joint control
 	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
-	Eigen::VectorXd initial_joint_position(dof), initial_desired_joint_position(dof);
+	Eigen::VectorXd initial_joint_position(dof), initial_desired_joint_position(dof), first(dof);
 	initial_joint_position = robot->_q;
 	joint_task_desired_position = initial_joint_position; 
 
@@ -85,8 +86,9 @@ int main() {
 	Eigen::MatrixXd joint_kv = Eigen::MatrixXd::Zero(7,7);
 	Eigen::VectorXd joint_kp_vector = Eigen::VectorXd::Zero(7);
 	Eigen::VectorXd joint_kv_vector = Eigen::VectorXd::Zero(7);
-	joint_kp_vector << 100, 100, 60, 60, 60, 100, 5;
-	joint_kv_vector << 20, 20, 10, 10, 20, 20, 1;
+	joint_kp_vector << 50, 50, 30, 10, 10, 8, 5;
+	joint_kv_vector << 10, 10, 10, 10, 5, 3, 1;
+
 
 	joint_kp = joint_kp_vector.asDiagonal();
 	joint_kv = joint_kv_vector.asDiagonal();
@@ -104,14 +106,14 @@ int main() {
 
 	//set preferred initial conditions 
 	initial_desired_joint_position << 90.0/180.0*M_PI, 
-										-30.0/180.0*M_PI, 
+										-50.0/180.0*M_PI, 
 										0, 
-										-20/180.0*M_PI,
+										-50/180.0*M_PI,
 										0,
 										-90/180.0*M_PI,
 										0; 
 	
-	// while window is open:
+
 	while (runloop) {
 
 		// wait for next scheduled loop
@@ -122,6 +124,7 @@ int main() {
 		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
 		if (readyToStart == false ) {
+
 			joint_task_torques = ( -joint_kp*(robot->_q - initial_desired_joint_position) - joint_kv*robot->_dq);
 
 			if (controller_counter > 5000) {
@@ -131,11 +134,12 @@ int main() {
 		} else { 
 
 			if (controller_counter%10 == 0 ) {
+				joint_kv_vector(3)= 5; 
 				joint_task_desired_position= initial_desired_joint_position; 
 				pan_string = redis_client.get(VR_PAN); 
 				tilt_string = redis_client.get(VR_TILT); 
 
-				pan = std::stof(pan_string);
+				pan =  std::stof(pan_string);
 				tilt = std::stof(tilt_string);
 
 				if (pan > 180) {
@@ -145,13 +149,19 @@ int main() {
 					tilt= tilt- 360; 
 				}
 
-				if (tilt > 20) {
-					tilt = 20;
+				if (tilt > 18)  {
+					tilt = -18;
 					cout<<"don't tilt more than -20deg"<<endl;
 				}
 
-				pan_rad= -pan/180.0*M_PI;
-				tilt_rad = -tilt/180.0*M_PI;
+				pan= pan*-1; 
+				tilt = tilt*-1;
+
+				cout<<"pan: "<<pan <<endl;
+				cout<<"tilt: "<<tilt <<endl;
+
+				pan_rad= pan/180.0*M_PI;
+				tilt_rad = tilt/180.0*M_PI;
 
 				joint_task_desired_position(TILT_JOINT)= initial_joint_position(TILT_JOINT)+tilt_rad;
 				joint_task_desired_position(PAN_JOINT) = initial_joint_position(PAN_JOINT)+ pan_rad; 
