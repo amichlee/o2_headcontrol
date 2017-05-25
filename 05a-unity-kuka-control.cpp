@@ -33,8 +33,15 @@ const std::string VR_TILT = "vr_tilt";
 const int PAN_JOINT = 4;
 const int TILT_JOINT= 5; 
 
+
+
  void sighandler(int sig)
  { runloop = false; }
+
+Eigen::VectorXd saturatedDesiredVelocity(Eigen::VectorXd Kv, Eigen::VectorXd Kp, Eigen::VectorXd qd, Eigen::VectorXd robot_q);
+float sigNum(float i); 
+const float DEG_TO_RAD= M_PI/180; 
+
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -87,7 +94,7 @@ int main() {
 	Eigen::VectorXd joint_kp_vector = Eigen::VectorXd::Zero(7);
 	Eigen::VectorXd joint_kv_vector = Eigen::VectorXd::Zero(7);
 	joint_kp_vector << 50, 50, 30, 10, 10, 8, 5;
-	joint_kv_vector << 10, 10, 10, 10, 5, 3, 1;
+	joint_kv_vector << 10, 10, 10, 5, 5, 3, 1;
 
 
 	joint_kp = joint_kp_vector.asDiagonal();
@@ -125,7 +132,7 @@ int main() {
 
 		if (readyToStart == false ) {
 
-			joint_task_torques = ( -joint_kp*(robot->_q - initial_desired_joint_position) - joint_kv*robot->_dq);
+			joint_task_torques = -joint_kv*( robot->_dq+ saturatedDesiredVelocity(joint_kv_vector, joint_kp_vector, initial_desired_joint_position, robot->_q));
 
 			if (controller_counter > 5000) {
 				readyToStart= true; 
@@ -134,7 +141,7 @@ int main() {
 		} else { 
 
 			if (controller_counter%10 == 0 ) {
-				joint_kv_vector(3)= 5; 
+				
 				joint_task_desired_position= initial_desired_joint_position; 
 				pan_string = redis_client.get(VR_PAN); 
 				tilt_string = redis_client.get(VR_TILT); 
@@ -170,7 +177,7 @@ int main() {
 				//cout<<"pan angle: " <<pan<<endl;
 				//cout<<"tilt angle: " <<tilt<<endl;
 			}
-			joint_task_torques = ( -joint_kp*(robot->_q - joint_task_desired_position) - joint_kv*robot->_dq);
+			joint_task_torques = -joint_kv*( robot->_dq+ saturatedDesiredVelocity(joint_kv_vector, joint_kp_vector, joint_task_desired_position, robot->_q));
 
 		}
 
@@ -207,4 +214,32 @@ int main() {
     std::cout << "Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
 
     return 0;
+
 }
+
+
+Eigen::VectorXd saturatedDesiredVelocity(Eigen::VectorXd Kv, Eigen::VectorXd Kp, Eigen::VectorXd qd, Eigen::VectorXd robot_q) {
+	Eigen::VectorXd q_diff(7);
+	Eigen::VectorXd diff(7); 
+	Eigen::VectorXd max(7);
+	max << 90.0, 90.0, 95.0, 125.0, 135.0, 170.0, 170.0; 
+	max*= DEG_TO_RAD; 
+	//cout<<"max: " <<max <<endl; 
+
+	for (int i = 0; i<qd.size(); i++) {
+	    diff(i)=Kp(i)/Kv(i)*(robot_q(i)-qd(i)); 
+	    //cout<<"current " <<i<< "num: " <<diff(i)<<endl;
+	    q_diff(i)= sigNum(diff(i)) * std::min(abs(diff(i)), max(i));
+	}
+	return q_diff; 
+}	
+
+
+
+float sigNum (float i) {
+	if (i<0) return -1;
+	if (i>0) return 1;
+	return 0; 
+}
+
+
