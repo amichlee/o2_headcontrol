@@ -156,13 +156,27 @@ int main() {
 					tilt= tilt- 360; 
 				}
 
-				if (tilt > 18)  {
-					tilt = -18;
+				pan= pan*-1; 
+				tilt = tilt*-1;
+
+				if (pan>160) {
+					pan = 160; 
+				}
+
+				if (pan <-160) {
+					pan = -160; 
+				}
+
+				if (tilt < -20)  {
+					tilt = -20;
 					cout<<"don't tilt more than -20deg"<<endl;
 				}
 
-				pan= pan*-1; 
-				tilt = tilt*-1;
+				if (tilt >80) {
+					tilt = 80; 
+				}
+
+				
 
 				cout<<"pan: "<<pan <<endl;
 				cout<<"tilt: "<<tilt <<endl;
