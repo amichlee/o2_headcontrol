@@ -159,25 +159,18 @@ int main() {
 				pan= pan*-1; 
 				tilt = tilt*-1;
 
-				if (pan >= 10 && pan <= 100) {
-					pos_pan = true; 
-				} else if (pan <= -10 && pan >= -100 ) {
-					pos_pan = false; 
-				}
-
-				if (pos_pan) {
-					cout<<"pos pan, left turn" <<endl;
-					if (pan > 160 || pan < -100) {
-						pan = 160; 
-						cout <<"pan is over +160 in left turn" <<endl;
-					} 
-				} else {
-					cout<<"neg pan, right turn" <<endl;
-					if (pan <-160 || pan > 100) {
+				if (robot->_q(PAN_JOINT) <0) {
+					if ((pan-robot->_q(PAN_JOINT)>0) || (pan<-160)) {
 						pan = -160; 
-						cout<< "pan is over -160 in right turn" <<endl;
+					} 
+				} else if (robot->_q(PAN_JOINT) >0) {
+					if ((pan - robot->_q(PAN_JOINT)<0) || (pan >160)) {
+						pan = 160; 
 					}
 				}
+
+
+	
 
 				/**
 
