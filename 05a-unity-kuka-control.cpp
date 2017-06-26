@@ -118,8 +118,8 @@ int main() {
 										-50/180.0*M_PI,
 										0,
 										-90/180.0*M_PI,
-										0; 
-	
+										45/180.0*M_PI; 
+	bool pos_pan = true; 
 
 	while (runloop) {
 
@@ -159,6 +159,28 @@ int main() {
 				pan= pan*-1; 
 				tilt = tilt*-1;
 
+				if (pan >= 10 && pan <= 100) {
+					pos_pan = true; 
+				} else if (pan <= -10 && pan >= -100 ) {
+					pos_pan = false; 
+				}
+
+				if (pos_pan) {
+					cout<<"pos pan, left turn" <<endl;
+					if (pan > 160 || pan < -100) {
+						pan = 160; 
+						cout <<"pan is over +160 in left turn" <<endl;
+					} 
+				} else {
+					cout<<"neg pan, right turn" <<endl;
+					if (pan <-160 || pan > 100) {
+						pan = -160; 
+						cout<< "pan is over -160 in right turn" <<endl;
+					}
+				}
+
+				/**
+
 				if (pan>160) {
 					pan = 160; 
 				}
@@ -166,6 +188,7 @@ int main() {
 				if (pan <-160) {
 					pan = -160; 
 				}
+				**/
 
 				if (tilt < -20)  {
 					tilt = -20;
