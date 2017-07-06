@@ -86,8 +86,7 @@ int main() {
 	// Joint control
 	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
 	Eigen::VectorXd initial_joint_position(dof), initial_desired_joint_position(dof), first(dof);
-	initial_joint_position = robot->_q;
-	joint_task_desired_position = initial_joint_position; 
+	
 
 	Eigen::MatrixXd joint_kp = Eigen::MatrixXd::Zero(7,7);
 	Eigen::MatrixXd joint_kv = Eigen::MatrixXd::Zero(7,7);
@@ -120,6 +119,10 @@ int main() {
 										-90/180.0*M_PI,
 										45/180.0*M_PI; 
 	bool pos_pan = true; 
+
+
+	initial_joint_position = initial_desired_joint_position; 
+	joint_task_desired_position = initial_joint_position; 
 
 	while (runloop) {
 
@@ -159,13 +162,25 @@ int main() {
 				pan= pan*-1; 
 				tilt = tilt*-1;
 
-				if (robot->_q(PAN_JOINT) <0) {
-					if ((pan-robot->_q(PAN_JOINT)>0) || (pan<-160)) {
+				if (controller_counter%1000 == 0) {
+					cout<<"pan pre fix: "<<pan<<endl; 
+					cout<<"current robot pan joint q" <<robot->_q(PAN_JOINT) *180/M_PI<<endl; 
+				}
+			
+
+				if (robot->_q(PAN_JOINT)*180/M_PI <-120) {
+					//cout<<"pan joint less than -50" <<endl; 
+					if (((pan - robot->_q(PAN_JOINT))>0) || (pan< -160)) {
 						pan = -160; 
+						//cout<<"pan joint shouldn't go beyond -160" <<endl; 
 					} 
-				} else if (robot->_q(PAN_JOINT) >0) {
-					if ((pan - robot->_q(PAN_JOINT)<0) || (pan >160)) {
+				} else if (robot->_q(PAN_JOINT)*180/M_PI >120) {
+					//cout<<"pan joint more than 50" <<endl; 
+
+					if (((pan - robot->_q(PAN_JOINT))<0) || (pan >160)) {
 						pan = 160; 
+						//cout<<"pan joint shouldn't go beyond +160" <<endl; 
+
 					}
 				}
 
@@ -193,9 +208,11 @@ int main() {
 				}
 
 				
-
-				cout<<"pan: "<<pan <<endl;
-				cout<<"tilt: "<<tilt <<endl;
+				if (controller_counter%1000 == 0 ) {
+					cout<<"pan: "<<pan <<endl;
+					cout<<"tilt: "<<tilt <<endl;
+				}
+			
 
 				pan_rad= pan/180.0*M_PI;
 				tilt_rad = tilt/180.0*M_PI;
